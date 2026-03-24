@@ -1,0 +1,43 @@
+name: CI/CD Pipeline - SOC Agents
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test-agents:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest flake8
+
+      - name: Lint Code
+        run: |
+          # Stop the build if there are Python syntax errors or undefined names
+          flake8 agents/ shared/ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Run Unit Tests
+        run: |
+          # Run the test suite for the Python agents logic
+          pytest tests/
+          
+  # Optional: build and push Docker image if tests pass
+  # build-docker:
+  #   needs: test-agents
+  #   runs-on: ubuntu-latest
+  #   steps: ...

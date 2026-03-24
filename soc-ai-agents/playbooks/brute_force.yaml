@@ -1,0 +1,10 @@
+name: brute_force
+attack_type: probe
+severity_threshold: 0.60
+actions:
+  - type: block_ip
+    description: Block attacker IP immediately
+  - type: notify
+    description: Alert analyst — possible credential compromise
+  - type: log
+    description: Save incident with failed auth count

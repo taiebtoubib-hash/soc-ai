@@ -1,0 +1,12 @@
+name: c2_communication
+attack_type: r2l
+severity_threshold: 0.75
+actions:
+  - type: isolate_host
+    description: Immediately isolate compromised internal host
+  - type: block_ip
+    description: Block external C2 server IP
+  - type: notify
+    description: CRITICAL alert to analyst and security manager
+  - type: log
+    description: Full forensic log of all connections

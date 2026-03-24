@@ -1,0 +1,6 @@
+scikit-learn
+xgboost
+joblib
+pydantic
+python-dotenv
+loguru

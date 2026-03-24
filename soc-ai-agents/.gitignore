@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Environment
+.env
+*.env.local
+
+# ML Models (never commit .pkl files)
+*.pkl
+ml_models/production/
+ml_models/candidate/
+ml_models/versions/
+
+# Logs
+logs/
+*.log
+
+# Data
+training/datasets/raw/*.csv
+training/datasets/processed/
+training/datasets/feedback/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.override.yml

@@ -1,0 +1,10 @@
+name: port_scan
+attack_type: probe
+severity_threshold: 0.45
+actions:
+  - type: block_ip
+    description: Block scanning IP at firewall level
+  - type: notify
+    description: Alert analyst via Slack
+  - type: log
+    description: Save incident to database

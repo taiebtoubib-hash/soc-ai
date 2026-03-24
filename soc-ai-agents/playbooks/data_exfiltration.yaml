@@ -1,0 +1,12 @@
+name: data_exfiltration
+attack_type: r2l
+severity_threshold: 0.75
+actions:
+  - type: isolate_host
+    description: Isolate host immediately to stop data loss
+  - type: block_ip
+    description: Block destination IP
+  - type: notify
+    description: CRITICAL — notify analyst, manager, and compliance team
+  - type: log
+    description: Full forensic log with bytes transferred

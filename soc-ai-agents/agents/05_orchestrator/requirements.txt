@@ -1,0 +1,4 @@
+pyyaml
+pydantic
+python-dotenv
+loguru

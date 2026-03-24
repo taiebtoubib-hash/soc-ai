@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  collector:
+    build:
+      context: .
+      dockerfile: agents/collector/Dockerfile
+    env_file: .env
+    volumes:
+      - /var/log/suricata:/var/log/suricata:ro
+
+  analysis:
+    build:
+      context: .
+      dockerfile: agents/analysis/Dockerfile
+    env_file: .env
+
+  detection:
+    build:
+      context: .
+      dockerfile: agents/detection/Dockerfile
+    env_file: .env
+
+  ml_classifier:
+    build:
+      context: .
+      dockerfile: agents/ml_classifier/Dockerfile
+    env_file: .env
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: agents/orchestrator/Dockerfile
+    env_file: .env
+
+  response:
+    build:
+      context: .
+      dockerfile: agents/response/Dockerfile
+    env_file: .env
+
+  threat_hunter:
+    build:
+      context: .
+      dockerfile: agents/threat_hunter/Dockerfile
+    env_file: .env
+
+  chroma:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+
+volumes:
+  chroma_data:

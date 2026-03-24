@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  collector:
+    build:
+      context: .
+      dockerfile: agents/01_collector/Dockerfile
+    volumes:
+      - .:/app
+    environment:
+      - ENV=development
+
+  analysis:
+    build:
+      context: .
+      dockerfile: agents/02_analysis/Dockerfile
+    volumes:
+      - .:/app
+  # ... Add other services similarly for dev
