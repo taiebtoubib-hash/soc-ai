@@ -35,46 +35,56 @@ Response (06)          ← Block IP, notify, isolate host
 | `05_orchestrator` | Selects YAML playbook based on attack type |
 | `06_response` | Executes block/isolate/notify actions |
 
+## Tech Stack
+- Python 3.11
+- XGBoost + scikit-learn (ML)
+- Docker + docker-compose
+- Wazuh (SIEM/EDR)
+- Suricata (IDS)
+- Shuffle (SOAR)
+
 ## Quick Start
 
+### Prerequisites
+- Python 3.11+
+- Docker Desktop
+- soc-ai-training repo (for ML models)
+
+### Setup
 ```bash
-# 1. Clone and setup
-git clone https://github.com/YOUR_USERNAME/soc-ai-agents
+# Clone both repos in same parent folder
+git clone <soc-ai-agents>
+git clone <soc-ai-training>
+
+# Setup environment
 cd soc-ai-agents
 cp .env.example .env
+# Fill in your credentials in .env
 
-# 2. Install dependencies
-python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
-pip install -r agents/01_collector/requirements.txt
+# Install dependencies
+pip install -r requirements.txt
 
-# 3. Run in simulation mode (no real Wazuh/Suricata needed)
-python main.py
+# Run simulator (development mode)
+python scripts/simulate_alerts.py
 ```
 
-## Configuration
-
-Copy `.env.example` to `.env` and fill in your credentials.
-See each key's comment for details.
-
-**Required for production:**
-- `WAZUH_HOST`, `WAZUH_USER`, `WAZUH_PASSWORD`
-- `ABUSEIPDB_KEY` — get free key at abuseipdb.com
-- `SLACK_WEBHOOK_URL` — for alert notifications
-
-**Development mode** (`COLLECTOR_MODE=simulate`):
-All keys can be left empty. Fake alerts are generated locally.
+### Run with Docker
+```bash
+docker-compose up --build
+```
 
 ## ML Models
-
-Pre-trained models live in `../soc-ai-training/ml_models/production/`.
-See the `soc-ai-training` repo for training scripts.
+Models are stored in soc-ai-training repository.
+See soc-ai-training/README.md for training instructions.
 
 Models used:
 - `threat_model.pkl` — Random Forest binary classifier
 - `attack_type_model.pkl` — Multi-class attack categorizer
 - `anomaly_model.pkl` — Isolation Forest for zero-day detection
 - `fp_model.pkl` / `fp_classifier.pkl` — False positive filter
+
+## Related Repository
+- soc-ai-training: ML training pipeline
 
 ## Project Structure
 
@@ -92,9 +102,14 @@ soc-ai-agents/
 ├── playbooks/       # YAML response playbooks
 ├── scripts/         # simulate_alerts.py, etc.
 ├── tests/
+├── ml_models/
+├── logs/
 ├── main.py          # Starts all agents as threads
+├── docker-compose.yml
+├── docker-compose.dev.yml
+├── requirements.txt
 ├── .env.example
-└── docker-compose.yml
+└── .gitignore
 ```
 
 ## Running Tests
@@ -105,14 +120,4 @@ python tests/test_analysis.py
 
 # Collector smoke test
 python tests/test_collector.py
-```
-
-## Docker
-
-```bash
-# Full stack
-docker-compose up
-
-# Development (no external services)
-docker-compose -f docker-compose.dev.yml up
 ```
