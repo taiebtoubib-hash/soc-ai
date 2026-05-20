@@ -227,13 +227,21 @@ class CollectorAgent:
     def __init__(self):
         self.mode = settings.COLLECTOR_MODE
         self.output_queue = raw_alerts_queue
-        log.info(f"CollectorAgent initialized | mode={self.mode}")
+        log.info(f"CollectorAgent initialized | mode={self.mode} | USE_KAFKA={settings.USE_KAFKA}")
+        
+        if settings.USE_KAFKA:
+            from shared.kafka_bus import KafkaBus
+            self.bus = KafkaBus(settings.KAFKA_BOOTSTRAP_SERVERS)
 
     def _push(self, raw: dict, normalizer):
-        """Normalize a raw alert and push to queue."""
+        """Normalize a raw alert and push to queue/Kafka."""
         try:
             normalized = normalizer(raw)
-            self.output_queue.put(normalized)
+            if settings.USE_KAFKA:
+                self.bus.publish("soc.raw", normalized, key=normalized.id)
+            else:
+                self.output_queue.put(normalized)
+                
             log.debug(
                 f"Alert queued | "
                 f"src={normalized.src_ip} → "

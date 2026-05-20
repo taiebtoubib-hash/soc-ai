@@ -54,17 +54,25 @@ incident_report_queue = Queue()
 
 # ── Helper Functions ───────────────────────────────────────────────
 
+from shared.config import settings
+
+# If USE_KAFKA is true, we replace the queues with Kafka topics abstraction.
+# But queue.Queue is synchronous and Kafka needs to be wrapped.
+
 def get_queue_sizes() -> dict:
     """
     Returns current size of all queues.
     Useful for monitoring pipeline health.
-    If any queue grows too large → agent downstream is too slow.
-
-    Example:
-        from shared.queue_bus import get_queue_sizes
-        print(get_queue_sizes())
-        # {'raw_alerts': 0, 'enriched_alerts': 3, ...}
+    If KAFKA is used, this returns dummy values (0) since Kafka topics 
+    don't provide instant size without specific AdminClient calls.
     """
+    if settings.USE_KAFKA:
+        return {
+            "raw_alerts": 0, "enriched_alerts": 0, "detection_results": 0,
+            "classification_results": 0, "true_positives": 0, "false_positives": 0,
+            "orchestration": 0, "incident_reports": 0
+        }
+
     return {
         "raw_alerts":            raw_alerts_queue.qsize(),
         "enriched_alerts":       enriched_alerts_queue.qsize(),

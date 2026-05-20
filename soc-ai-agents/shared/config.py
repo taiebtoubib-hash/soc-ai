@@ -23,6 +23,10 @@ class Config:
     # ── General ───────────────────────────────────────────
     ENV = os.getenv("ENV", "development")   # "development" | "production"
 
+    # ── Kafka Infrastructure ────────────────────────────────
+    KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
+    USE_KAFKA               = os.getenv("USE_KAFKA", "false").lower() == "true"
+
     # ── Wazuh ─────────────────────────────────────────────
     WAZUH_HOST     = os.getenv("WAZUH_HOST", "localhost")
     WAZUH_PORT     = int(os.getenv("WAZUH_PORT", 55000))
@@ -89,6 +93,12 @@ class Config:
     # final_score >= ML_SUSPECT_THRESHOLD → "suspicious" → notify analyst
     # final_score <  ML_SUSPECT_THRESHOLD → "benign"    → log only
 
+    # ── Ollama / LLM ──────────────────────────────────────────────────
+    OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+    OLLAMA_MODEL    = os.getenv("OLLAMA_MODEL",    "mistral:7b")
+    LLM_ENABLED     = os.getenv("LLM_ENABLED",     "true").lower() == "true"
+    LLM_TIMEOUT     = int(os.getenv("LLM_TIMEOUT", 30))
+
     # ── False Positive thresholds ─────────────────────────
     FP_SCORE_THRESHOLD = float(os.getenv("FP_SCORE_THRESHOLD", 0.60))
     # fp_score >= FP_SCORE_THRESHOLD → confirmed false positive → skip response
@@ -107,6 +117,9 @@ class Config:
             if not cls.WAZUH_PASSWORD:      missing.append("WAZUH_PASSWORD")
             if not cls.ABUSEIPDB_KEY:       missing.append("ABUSEIPDB_KEY")
             if not cls.SHUFFLE_WEBHOOK_URL: missing.append("SHUFFLE_WEBHOOK_URL")
+
+            if cls.USE_KAFKA and not cls.KAFKA_BOOTSTRAP_SERVERS:
+                missing.append("KAFKA_BOOTSTRAP_SERVERS")
 
             if missing:
                 raise ValueError(

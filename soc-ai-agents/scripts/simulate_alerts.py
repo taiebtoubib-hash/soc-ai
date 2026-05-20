@@ -244,10 +244,36 @@ def get_single_alert(label: str = None) -> dict:
 
 # ── Run standalone for manual testing ─────────────────────────────
 if __name__ == "__main__":
-    import queue as q
-    test_queue = q.Queue()
+    import sys
+    from pathlib import Path
+    _ROOT = Path(__file__).parent.parent
+    sys.path.insert(0, str(_ROOT))
+
+    from shared.config import settings
+
+    if settings.USE_KAFKA:
+        from shared.kafka_bus import KafkaBus
+        from shared.models import NormalizedAlert
+        print(f"📡 Using Kafka Bus at {settings.KAFKA_BOOTSTRAP_SERVERS}")
+        bus = KafkaBus(settings.KAFKA_BOOTSTRAP_SERVERS)
+        
+        # We wrap the proxy in a fake queue interface for compatibility with stream_to_queue
+        class KafkaQueueProxy:
+            def put(self, item):
+                model_item = NormalizedAlert(**item)
+                bus.publish("soc.raw", model_item, key=model_item.id)
+            def qsize(self):
+                return 0
+                
+        target_queue = KafkaQueueProxy()
+    else:
+        import queue as q
+        target_queue = q.Queue()
 
     try:
-        stream_to_queue(test_queue, speed="normal")
+        stream_to_queue(target_queue, speed="normal")
     except KeyboardInterrupt:
-        print(f"\n⏹  Simulator stopped. {test_queue.qsize()} alerts in queue.")
+        if not settings.USE_KAFKA:
+            print(f"\n⏹  Simulator stopped. {target_queue.qsize()} alerts in queue.")
+        else:
+            print(f"\n⏹  Simulator stopped.")

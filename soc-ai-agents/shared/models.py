@@ -65,6 +65,7 @@ class DetectionResult(BaseModel):
     rule_name: str            # "PORT_SCAN" | "BRUTE_FORCE" | "NONE" etc.
     confidence: float         # 0.0 to 1.0
     needs_ml: bool            # True → send to ML classifier
+    llm_analysis: str = ""
 
 
 class ClassificationResult(BaseModel):
@@ -107,3 +108,4 @@ class IncidentReport(BaseModel):
     resolved: bool = False
     analyst_approved: bool = False
     notes: str = ""
+    llm_narrative: str = ""

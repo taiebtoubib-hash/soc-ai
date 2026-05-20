@@ -7,14 +7,14 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Install agent specific dependencies
-COPY agents/02_analysis/requirements.txt ./agent_reqs.txt
+COPY agents/06_response/requirements.txt ./agent_reqs.txt
 RUN pip install --no-cache-dir -r agent_reqs.txt || true
 
 # Copy shared modules
 COPY shared /app/shared
 
 # Copy agent code
-COPY agents/02_analysis /app/agents/02_analysis
+COPY agents/06_response /app/agents/06_response
 
 ENV PYTHONPATH=/app
-CMD ["python", "agents/02_analysis/agent.py"]
+CMD ["python", "agents/06_response/agent.py"]

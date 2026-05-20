@@ -101,30 +101,56 @@ class AnalysisAgent:
 
     # ── Main loop ─────────────────────────────────────────────────
 
-    def run(self):
-        """
-        Blocking main loop.  Reads from raw_alerts_queue, enriches
-        each alert, and writes to enriched_alerts_queue.
-        """
-        log.info("AnalysisAgent running — waiting for alerts...")
-
-        while True:
-            try:
-                alert: NormalizedAlert = self.queue_in.get()
-                enriched = self.enrich(alert)
+    def _process_alert_and_forward(self, alert: NormalizedAlert):
+        """Processes a single alert and forwards it to the next stage."""
+        try:
+            enriched = self.enrich(alert)
+            
+            if settings.USE_KAFKA:
+                self.bus.publish("soc.enriched", enriched, key=enriched.alert.id)
+            else:
                 self.queue_out.put(enriched)
 
-                log.info(
-                    f"Enriched | src={alert.src_ip} | "
-                    f"reputation={enriched.src_reputation_score:.2f} | "
-                    f"internal={enriched.is_src_internal} | "
-                    f"bad_port={enriched.is_known_bad_port} | "
-                    f"same_src_count={enriched.same_src_ip_count_last_5min}"
-                )
+            log.info(
+                f"Enriched | src={alert.src_ip} | "
+                f"reputation={enriched.src_reputation_score:.2f} | "
+                f"internal={enriched.is_src_internal} | "
+                f"bad_port={enriched.is_known_bad_port} | "
+                f"same_src_count={enriched.same_src_ip_count_last_5min}"
+            )
+            log.info(
+                f"✅ Vecteur ML généré : {len(enriched.features)} features -> "
+                f"{list(enriched.features.values())[:8]} ..."
+            )
+        except Exception as exc:
+            log.error(f"Unexpected error in AnalysisAgent processing: {exc}")
 
-            except Exception as exc:
-                log.error(f"Unexpected error in AnalysisAgent loop: {exc}")
-                # Do NOT crash — continue processing the next alert
+    def run(self):
+        """
+        Blocking main loop. Reads from raw alerts queue or Kafka topic,
+        enriches each alert, and writes to enriched output.
+        """
+        log.info(f"AnalysisAgent running — USE_KAFKA={settings.USE_KAFKA}")
+
+        if settings.USE_KAFKA:
+            from shared.kafka_bus import KafkaBus
+            self.bus = KafkaBus(settings.KAFKA_BOOTSTRAP_SERVERS)
+            log.info("AnalysisAgent waiting for alerts via Kafka topic: soc.raw...")
+            # This is a blocking call that runs forever
+            self.bus.consume(
+                topic="soc.raw",
+                group_id="analysis-group",
+                model_class=NormalizedAlert,
+                callback=self._process_alert_and_forward
+            )
+        else:
+            log.info("AnalysisAgent waiting for alerts via in-memory queue...")
+            while True:
+                try:
+                    alert: NormalizedAlert = self.queue_in.get()
+                    self._process_alert_and_forward(alert)
+                except Exception as exc:
+                    log.error(f"Error in Analysis queue loop: {exc}")
 
 
 # ── Entrypoint ────────────────────────────────────────────────────
