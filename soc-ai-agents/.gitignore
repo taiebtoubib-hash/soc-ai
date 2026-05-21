@@ -14,7 +14,7 @@ build/
 *.env.local
 
 # ML Models (never commit .pkl files)
-*.pkl
+
 ml_models/production/
 ml_models/candidate/
 ml_models/versions/
@@ -40,3 +40,5 @@ Thumbs.db
 
 # Docker
 *.override.yml
+
+!ml_models/*.pkl
