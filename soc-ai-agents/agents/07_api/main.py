@@ -77,11 +77,33 @@ sse_queues: Set[asyncio.Queue] = set()
 incidents_cache = []
 
 
+def _process_message(msg) -> dict | None:
+    """Parse a raw Kafka message into a flattened incident dict. Returns None on error."""
+    try:
+        raw_val = msg.value().decode("utf-8")
+        report = json.loads(raw_val)
+        return flatten_incident(report)
+    except Exception as e:
+        log.error("Error parsing Kafka message: %s", e)
+        return None
+
+
+def _upsert_cache(flat_inc: dict):
+    """Insert or update an incident in the in-memory cache (max 100 entries)."""
+    for i, existing in enumerate(incidents_cache):
+        if existing["id"] == flat_inc["id"]:
+            incidents_cache[i] = flat_inc
+            return
+    incidents_cache.append(flat_inc)
+    if len(incidents_cache) > 100:
+        incidents_cache.pop(0)
+
+
 async def kafka_consumer_loop():
     """Continuously consumes from soc.frontend in the background, caching and broadcasting alerts."""
     log.info("Starting background Kafka consumer loop...")
     consumer = None
-    
+
     # Re-try connection loop in case Kafka is booting up
     while True:
         try:
@@ -89,19 +111,42 @@ async def kafka_consumer_loop():
                 "bootstrap.servers": settings.KAFKA_BOOTSTRAP_SERVERS,
                 "group.id":          "api-background-consumer",
                 "auto.offset.reset": "earliest",
+                # Never commit offsets so every restart replays full history
+                "enable.auto.commit": False,
             })
             consumer.subscribe(["soc.frontend"])
-            log.info("Successfully connected to Kafka and subscribed to soc.frontend topic.")
+            log.info("Connected to Kafka; subscribed to soc.frontend.")
             break
         except Exception as e:
-            log.error("Failed to connect to Kafka at %s: %s. Retrying in 5 seconds...", 
+            log.error("Failed to connect to Kafka at %s: %s. Retrying in 5 seconds...",
                       settings.KAFKA_BOOTSTRAP_SERVERS, e)
             await asyncio.sleep(5)
-            
+
     try:
         loop = asyncio.get_running_loop()
+
+        # ── Startup replay: drain all existing messages before going live ──
+        log.info("Replaying historical soc.frontend messages into cache...")
+        consecutive_empty = 0
+        while consecutive_empty < 3:
+            msg = await loop.run_in_executor(None, consumer.poll, 0.5)
+            if msg is None:
+                consecutive_empty += 1
+                continue
+            if msg.error():
+                if msg.error().code() != KafkaError._PARTITION_EOF:
+                    log.error("Kafka error during replay: %s", msg.error())
+                consecutive_empty += 1
+                continue
+            consecutive_empty = 0
+            flat_inc = _process_message(msg)
+            if flat_inc:
+                _upsert_cache(flat_inc)
+
+        log.info("Replay complete — %d historical incidents loaded.", len(incidents_cache))
+
+        # ── Live loop: broadcast new events to SSE clients ──
         while True:
-            # Poll Kafka within thread pool executor to not block async event loop
             msg = await loop.run_in_executor(None, consumer.poll, 0.5)
             if msg is None:
                 continue
@@ -109,32 +154,14 @@ async def kafka_consumer_loop():
                 if msg.error().code() != KafkaError._PARTITION_EOF:
                     log.error("Kafka consumer error: %s", msg.error())
                 continue
-                
-            try:
-                raw_val = msg.value().decode("utf-8")
-                report = json.loads(raw_val)
-                flat_inc = flatten_incident(report)
-                
-                # Deduplicate and update cache
-                exists = False
-                for i, existing in enumerate(incidents_cache):
-                    if existing["id"] == flat_inc["id"]:
-                        incidents_cache[i] = flat_inc
-                        exists = True
-                        break
-                if not exists:
-                    incidents_cache.append(flat_inc)
-                    # Cap cache size at 100 entries
-                    if len(incidents_cache) > 100:
-                        incidents_cache.pop(0)
-                
-                # Broadcast event to all active SSE queues
+
+            flat_inc = _process_message(msg)
+            if flat_inc:
+                _upsert_cache(flat_inc)
                 event_data = f"data: {json.dumps(flat_inc)}\n\n"
                 for q in list(sse_queues):
                     await q.put(event_data)
-                    
-            except Exception as e:
-                log.error("Error processing message in background consumer: %s", e)
+
     except asyncio.CancelledError:
         log.info("Background consumer loop task cancelled.")
     finally:
@@ -224,5 +251,17 @@ async def submit_feedback(record: FeedbackRecord):
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok"}
-
+    """Health check — also validates Kafka connectivity."""
+    kafka_ok = False
+    try:
+        from confluent_kafka.admin import AdminClient
+        admin = AdminClient({"bootstrap.servers": settings.KAFKA_BOOTSTRAP_SERVERS})
+        meta = admin.list_topics(timeout=3)
+        kafka_ok = meta is not None
+    except Exception:
+        pass
+    return {
+        "status": "ok" if kafka_ok else "degraded",
+        "kafka": kafka_ok,
+        "cached_incidents": len(incidents_cache),
+    }

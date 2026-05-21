@@ -14,7 +14,7 @@ services:
     networks:
       - soc-net
     healthcheck:
-      test: ["CMD", "bash", "-c", "echo ruok | nc localhost 2181"]
+      test: [ "CMD", "bash", "-c", "echo ruok | nc localhost 2181" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,7 +27,7 @@ services:
       zookeeper:
         condition: service_healthy
     ports:
-      - "29092:29092"   # host access (for local scripts / simulate_alerts.py)
+      - "29092:29092" # host access (for local scripts / simulate_alerts.py)
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -39,14 +39,14 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
-      KAFKA_LOG_RETENTION_MS: 86400000      # 24h retention
-      KAFKA_MESSAGE_MAX_BYTES: 10485760     # 10MB max message
+      KAFKA_LOG_RETENTION_MS: 86400000 # 24h retention
+      KAFKA_MESSAGE_MAX_BYTES: 10485760 # 10MB max message
     volumes:
       - kafka_data:/var/lib/kafka/data
     networks:
       - soc-net
     healthcheck:
-      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      test: [ "CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092" ]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -62,7 +62,7 @@ services:
       - soc-net
     volumes:
       - ./infra/kafka/init-topics.sh:/init-topics.sh
-    entrypoint: ["/bin/bash", "/init-topics.sh"]
+    entrypoint: [ "/bin/bash", "/init-topics.sh" ]
     restart: "no"
 
   kafka-ui:
@@ -110,7 +110,7 @@ services:
     networks:
       - soc-net
     healthcheck:
-      test: ["CMD", "ollama", "list"]
+      test: [ "CMD", "ollama", "list" ]
       interval: 15s
       timeout: 10s
       retries: 8
@@ -150,7 +150,7 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - USE_KAFKA=true
     volumes:
-      - /var/log/suricata:/var/log/suricata:ro   # mounted on Linux host only
+      - /var/log/suricata:/var/log/suricata:ro # mounted on Linux host only
     networks:
       - soc-net
 
@@ -283,6 +283,12 @@ services:
       - "8001:8000"
     networks:
       - soc-net
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/api/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   soc-dashboard:
     build:
@@ -291,7 +297,8 @@ services:
     container_name: soc-dashboard
     restart: unless-stopped
     depends_on:
-      - soc-api
+      soc-api:
+        condition: service_healthy
     ports:
       - "3000:3000"
     networks:
