@@ -78,13 +78,20 @@ Scans active analyst feedback over the last N days. Computes False Positive and 
 ---
 
 ## ✍️ Analyst Feedback Loop
+ 
+The system operates in a closed loop. Live analyst feedback submitted from the React dashboard is pushed to the `soc.feedback` topic in Kafka. 
 
-The system operates in a closed loop. Live analyst feedback submitted from the React dashboard is pushed to the `soc.feedback` topic in Kafka. You can also record analyst verdicts manually via the CLI tool:
-
+To bridge this feedback back into the training dataset:
+1. **Background Consumer**: Run the background consumer script to listen to the Kafka topic and write feedback to the monthly CSVs:
+   ```bash
+   python training/consume_feedback.py
+   ```
+2. **Manual CLI**: You can also record analyst verdicts manually via the CLI tool:
+ 
 ```bash
 # Run interactive feedback collection CLI
 python training/collect_feedback.py
-
+ 
 # Run direct input command
 python training/collect_feedback.py \
     --alert-id "alert-98247192" \
