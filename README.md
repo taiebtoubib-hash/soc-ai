@@ -21,11 +21,16 @@ soc-ai/
 ## 🔗 How the Pipelines Link
 
 The agents and MLOps pipelines are decoupled but integrated through the machine learning models they share:
-
+ 
+* **Model Serialization**: Models are serialized using `joblib` in the training pipeline and loaded using `joblib.load()` inside the agents.
 * **Local Development (`USE_KAFKA=false`):** 
   The agents run in-memory and read the `.pkl` models directly from `../soc-ai-training/ml_models/production/`. When the training pipeline promotes a new model, the running agents hot-reload the updated intelligence instantly.
 * **Production / Docker (`USE_KAFKA=true`):** 
   The agents run as containerized microservices. The models in `soc-ai-training/ml_models/production/` are copied or mounted to `soc-ai-agents/ml_models/` so they can be loaded by the Docker containers.
+ 
+> [!WARNING]
+> **Windows Git line endings warning:**
+> If you clone or pull this repository on Windows, ensure that your git config is set to `git config core.autocrlf input` to prevent Windows from converting line endings in binary files (like `.pkl` models) to CRLF, which corrupts the models. The repository contains a `.gitattributes` file to enforce binary tracking of these files.
 
 ---
 
@@ -67,7 +72,10 @@ This launches Kafka, Zookeeper, ChromaDB, Ollama, all agents, the FastAPI bridge
 cd soc-ai-agents
 
 # Copy promoted models from the training repository
+# Linux/macOS:
 cp ../soc-ai-training/ml_models/production/*.pkl ./ml_models/
+# Windows (PowerShell):
+Copy-Item -Path "..\soc-ai-training\ml_models\production\*.pkl" -Destination ".\ml_models\" -Force
 
 # Set up environment variables
 cp .env.example .env

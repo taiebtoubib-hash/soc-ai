@@ -106,11 +106,21 @@ The pipeline leverages an event backbone powered by **Apache Kafka** where each 
 
 ### Model Provisioning
 Copy the trained `.pkl` models from the `soc-ai-training` production directory into the local model folder before starting:
-```bash
-cp ../soc-ai-training/ml_models/production/*.pkl ./ml_models/
-```
 
-Required models:
+* **Linux/macOS:**
+  ```bash
+  cp ../soc-ai-training/ml_models/production/*.pkl ./ml_models/
+  ```
+* **Windows (PowerShell):**
+  ```powershell
+  Copy-Item -Path "..\soc-ai-training\ml_models\production\*.pkl" -Destination ".\ml_models\" -Force
+  ```
+
+> [!WARNING]
+> **Windows Git line endings warning:**
+> If you clone or pull this repository on Windows, ensure that your git config is set to `git config core.autocrlf input` to prevent Windows from converting line endings in binary files (like `.pkl` models) to CRLF, which corrupts the models. The repository contains a `.gitattributes` file to enforce binary tracking of these files.
+
+Required models (loaded via `joblib.load()` inside the agents):
 * `threat_model.pkl` — Threat scoring classifier
 * `attack_type_model.pkl` — Attack categorizer
 * `preprocessor.pkl` / `encoders.pkl` — Feature transformations
