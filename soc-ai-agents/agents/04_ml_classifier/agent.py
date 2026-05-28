@@ -14,7 +14,7 @@ Skips both models entirely when detection.needs_ml is False.
 """
 
 import sys
-import pickle
+import joblib
 import logging
 import pandas as pd
 from typing import Any, Dict
@@ -63,8 +63,7 @@ def load_models() -> Dict[str, Any]:
 
     for key, path in paths.items():
         try:
-            with open(path, "rb") as f:
-                loaded[key] = pickle.load(f)
+            loaded[key] = joblib.load(path)
             log.info("[MODELS] Loaded %s from %s ✓", labels[key], path)
         except FileNotFoundError:
             log.critical(

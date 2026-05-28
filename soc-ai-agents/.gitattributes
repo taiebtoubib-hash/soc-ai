@@ -1,2 +1,7 @@
-
-*.pkl binary
+# Binary ML model files — never apply CRLF or diff
+*.pkl binary -text -diff
+*.joblib binary -text -diff
+*.npy binary -text -diff
+*.npz binary -text -diff
+*.h5 binary -text -diff
+*.onnx binary -text -diff

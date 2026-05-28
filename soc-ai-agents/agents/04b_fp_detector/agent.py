@@ -17,7 +17,7 @@ If any model file is missing → log CRITICAL and exit(1).
 """
 
 import sys
-import pickle
+import joblib
 import logging
 import pandas as pd
 from typing import Any, Dict
@@ -59,8 +59,7 @@ def load_fp_models() -> Dict[str, Any]:
 
     for key, path in paths.items():
         try:
-            with open(path, "rb") as f:
-                loaded[key] = pickle.load(f)
+            loaded[key] = joblib.load(path)
             log.info("[FP_MODELS] Loaded %-15s from %s ✓", key, path)
         except FileNotFoundError:
             log.critical(

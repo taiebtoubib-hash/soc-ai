@@ -4,6 +4,11 @@ scripts/simulate_alerts.py
 Generates realistic fake Wazuh and Suricata alerts for local testing.
 Use this when ENV=development (no real Wazuh/Suricata server needed).
 
+⚠️  RUN FROM HOST MACHINE ONLY
+    python scripts/simulate_alerts.py
+    Kafka is reachable at localhost:29092 (external port mapped in docker-compose).
+    DO NOT run this inside a container — use kafka:9092 from inside the soc-net network.
+
 Simulates these attack types:
   - Neptune DoS (SYN flood)
   - Port scan (nmap style)
@@ -14,7 +19,7 @@ Simulates these attack types:
 
 Usage:
     python scripts/simulate_alerts.py
-    → writes fake alerts to shared queue every few seconds
+    → writes fake alerts to Kafka or shared queue every few seconds
 """
 
 import random
@@ -244,6 +249,7 @@ def get_single_alert(label: str = None) -> dict:
 
 # ── Run standalone for manual testing ─────────────────────────────
 if __name__ == "__main__":
+    import os
     import sys
     from pathlib import Path
     _ROOT = Path(__file__).parent.parent
@@ -254,8 +260,13 @@ if __name__ == "__main__":
     if settings.USE_KAFKA:
         from shared.kafka_bus import KafkaBus
         from shared.models import NormalizedAlert
-        print(f"📡 Using Kafka Bus at {settings.KAFKA_BOOTSTRAP_SERVERS}")
-        bus = KafkaBus(settings.KAFKA_BOOTSTRAP_SERVERS)
+
+        bootstrap_servers = settings.KAFKA_BOOTSTRAP_SERVERS
+        if bootstrap_servers == "kafka:9092":
+            bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS_HOST", "localhost:29092")
+
+        print(f"📡 Using Kafka Bus at {bootstrap_servers}")
+        bus = KafkaBus(bootstrap_servers)
         
         # We wrap the proxy in a fake queue interface for compatibility with stream_to_queue
         class KafkaQueueProxy:
