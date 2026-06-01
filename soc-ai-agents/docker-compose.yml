@@ -1,8 +1,8 @@
-services:
+# ─────────────────────────────────────────────
+#  INFRASTRUCTURE — Kafka + Zookeeper + UI
+# ─────────────────────────────────────────────
 
-  # ─────────────────────────────────────────────
-  #  INFRASTRUCTURE — Kafka + Zookeeper + UI
-  # ─────────────────────────────────────────────
+services:
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.3
@@ -27,7 +27,7 @@ services:
       zookeeper:
         condition: service_healthy
     ports:
-      - "29092:29092" # host access (for local scripts / simulate_alerts.py)
+      - "29092:29092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -39,8 +39,8 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
-      KAFKA_LOG_RETENTION_MS: 86400000 # 24h retention
-      KAFKA_MESSAGE_MAX_BYTES: 10485760 # 10MB max message
+      KAFKA_LOG_RETENTION_MS: 86400000
+      KAFKA_MESSAGE_MAX_BYTES: 10485760
     volumes:
       - kafka_data:/var/lib/kafka/data
     networks:
@@ -129,7 +129,7 @@ services:
     environment:
       - OLLAMA_HOST=http://ollama:11434
     entrypoint: >
-      sh -c "ollama pull mistral:7b && echo '>>> Model ready <<<'"
+      sh -c "ollama pull tinyllama && echo '>>> Model ready <<<'"
     restart: "no"
 
   # ─────────────────────────────────────────────
@@ -150,7 +150,7 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - USE_KAFKA=true
     volumes:
-      - /var/log/suricata:/var/log/suricata:ro # mounted on Linux host only
+      - /var/log/suricata:/var/log/suricata:ro
     networks:
       - soc-net
 
@@ -179,13 +179,14 @@ services:
     depends_on:
       kafka-init:
         condition: service_completed_successfully
-      ollama-init:
-        condition: service_completed_successfully
     env_file: .env
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - USE_KAFKA=true
       - OLLAMA_BASE_URL=http://ollama:11434
+      - MODELS_PATH=/app/ml_models
+    volumes:
+      - ./ml_models:/app/ml_models:ro
     networks:
       - soc-net
 
@@ -202,6 +203,7 @@ services:
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - USE_KAFKA=true
+      - MODELS_PATH=/app/ml_models
     volumes:
       - ./ml_models:/app/ml_models:ro
     networks:
@@ -220,6 +222,7 @@ services:
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - USE_KAFKA=true
+      - MODELS_PATH=/app/ml_models
     volumes:
       - ./ml_models:/app/ml_models:ro
     networks:
@@ -317,3 +320,5 @@ volumes:
   kafka_data:
   chroma_data:
   ollama_data:
+    # NOTE: ml_models is a bind mount (./ml_models → /app/ml_models), not a named volume.
+    # No entry needed here. Retrain locally and restart the agents to pick up new models.

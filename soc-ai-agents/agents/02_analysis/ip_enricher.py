@@ -69,7 +69,8 @@ class IPEnricher:
             return cached
 
         # 3. No API key → development mode, skip lookup
-        if not self.api_key:
+        if not self.api_key or not self.api_key.strip():
+            log.warning(f"AbuseIPDB API key is empty or not set. Skipping API call for {ip}.")
             result = {"score": 0.0, "country": "unknown", "is_whitelisted": False}
             self._set_cache(ip, result)
             return result
