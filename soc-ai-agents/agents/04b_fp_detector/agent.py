@@ -86,35 +86,52 @@ def score_fp(
     """
     Compute the false-positive probability score for a ClassificationResult.
 
-    Strategy:
-      - Benign alerts (ml_label == "benign") are fast-pathed as false positives
-        without running the FP models (saves compute, avoids loading features
-        for trivially low-confidence alerts).
-      - All others are scored by fp_model.predict_proba using the same
-        41-feature vector that was built by 02_analysis.
+    Three-tier strategy:
+      1. Benign + no rule triggered → fast-path as FP (skip models).
+      2. High-confidence malicious (ml_label=="malicious" and score >= threshold)
+         → skip FP models entirely and route directly as true positive.
+      3. All others → use IsolationForest.predict() first:
+           -1 (anomaly)  → true positive  (fp_score = 0.0)
+            1 (normal)   → run fp_classifier for final FP probability.
 
     Args:
         result: ClassificationResult from 04_ml_classifier
-        models: dict with keys "fp_model" and "fp_classifier"
+        models: dict with keys "fp_model" (IsolationForest) and
+                "fp_classifier" (LogisticRegression)
 
     Returns:
         (fp_score: float, is_false_positive: bool)
-          fp_score         — probability that this alert is a false positive
+          fp_score          — probability that this alert is a false positive
           is_false_positive — True if fp_score >= FP_SCORE_THRESHOLD
     """
-    # Fast path: if the ML classifier already called it "benign", treat as FP
+    # Tier 1: benign with no rule → definitely a false positive
     if result.ml_label == "benign" and not result.detection.rule_triggered:
-        fp_score = 1.0
-        is_fp    = True
-        return fp_score, is_fp
+        return 1.0, True
 
-    # Full FP scoring using the feature vector
+    # Tier 2: high-confidence malicious → trust the upstream classifier, skip FP models
+    if result.ml_label == "malicious" and result.final_score >= settings.ML_THREAT_THRESHOLD:
+        return 0.0, False
+
+    # Tier 3: suspicious or low-confidence — run FP models
     features = result.detection.enriched.features
     df = pd.DataFrame([features])
+    # Use .values to pass a plain numpy array and suppress sklearn feature-name warnings
+    X = df.values
 
-    fp_score: float = float(models["fp_model"].predict_proba(df)[0][1])
-    is_fp: bool     = fp_score >= settings.FP_SCORE_THRESHOLD
+    try:
+        # IsolationForest.predict(): -1 = anomaly (true positive), 1 = normal (false positive)
+        iso_pred = models["fp_model"].predict(X)[0]
+        if iso_pred == -1:
+            # Isolation Forest flagged this as anomalous → route as true positive
+            fp_score: float = 0.0
+        else:
+            # Looks normal to IsolationForest → verify with LogisticRegression
+            fp_score = float(models["fp_classifier"].predict_proba(X)[0][1])
+    except Exception as exc:
+        log.warning("FP model scoring failed (%s) — treating as uncertain true positive", exc)
+        fp_score = 0.3  # below default threshold of 0.60 → routes as true positive
 
+    is_fp: bool = fp_score >= settings.FP_SCORE_THRESHOLD
     return fp_score, is_fp
 
 
