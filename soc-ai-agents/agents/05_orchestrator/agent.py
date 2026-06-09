@@ -42,6 +42,8 @@ RULE_TO_PLAYBOOK: Dict[str, str] = {
     "BRUTE_FORCE":       "brute_force",
     "C2_COMMUNICATION":  "c2_communication",
     "DATA_EXFILTRATION": "data_exfiltration",
+    "DOS_FLOOD":         "dos_flood",
+    "PRIVILEGE_ESCALATION": "privilege_escalation",
 }
 
 # ── Module-level state — set once in main() ────────────────────────────

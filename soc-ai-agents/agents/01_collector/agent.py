@@ -256,24 +256,24 @@ class CollectorAgent:
     def run_simulate(self):
         """Development mode — fake alerts."""
         log.info("Starting SIMULATE collector")
-        sim = SimulateCollector()
 
-        import random
-        from scripts.simulate_alerts import ATTACK_TEMPLATES, NORMAL_TRAFFIC
+        from scripts.simulate_alerts import get_single_alert
+        wazuh_norm = WazuhCollector().normalize
+        suri_norm = SuricataCollector().normalize
 
-        pool = (NORMAL_TRAFFIC * 3) + ATTACK_TEMPLATES
         count = 0
 
         while True:
-            template = random.choice(pool)
-            raw = {
-                "id": str(random.randint(100000, 999999)),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                **template
-            }
-            self._push(raw, sim.normalize)
+            raw = get_single_alert()
+            source = raw.get("source", "")
+            
+            if source == "wazuh":
+                self._push(raw, wazuh_norm)
+            else:
+                self._push(raw, suri_norm)
+                
             count += 1
-            log.info(f"Simulated alert #{count} | {template.get('label', 'normal')}")
+            log.info(f"Simulated alert #{count} | {raw.get('label', 'normal')}")
             time.sleep(2)
 
     # ── Wazuh mode ───────────────────────────────────────────────

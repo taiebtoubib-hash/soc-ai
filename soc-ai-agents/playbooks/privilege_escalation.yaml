@@ -1,0 +1,12 @@
+name: privilege_escalation
+attack_type: u2r
+severity_threshold: 0.75
+actions:
+  - type: isolate_host
+    description: Immediately isolate compromised host from network
+  - type: block_ip
+    description: Block source IP if external
+  - type: notify
+    description: CRITICAL — root access gained, notify security team and IR lead
+  - type: log
+    description: Full forensic log with root shell and privilege details

@@ -40,7 +40,39 @@ def apply_rules(alert: EnrichedAlert) -> DetectionResult:
       5. NONE             — no rule matched
     """
 
-    # ── Priority 1: PORT_SCAN ────────────────────────────
+    # ── Priority 1: PRIVILEGE_ESCALATION ─────────────────
+    raw = alert.alert.raw or {}
+    raw_data = raw.get("data", raw)
+
+    def check_flag(field):
+        val = raw_data.get(field)
+        if val is None:
+            return False
+        try:
+            return int(val) == 1
+        except (ValueError, TypeError):
+            return False
+
+    if check_flag("root_shell") or check_flag("su_attempted"):
+        return DetectionResult(
+            enriched=alert,
+            rule_triggered=True,
+            rule_name="PRIVILEGE_ESCALATION",
+            confidence=0.90,
+            needs_ml=True,
+        )
+
+    # ── Priority 2: C2_COMMUNICATION ─────────────────────
+    if alert.is_src_internal and alert.is_known_bad_port:
+        return DetectionResult(
+            enriched=alert,
+            rule_triggered=True,
+            rule_name="C2_COMMUNICATION",
+            confidence=0.85,
+            needs_ml=True,
+        )
+
+    # ── Priority 3: PORT_SCAN ────────────────────────────
     if alert.unique_dst_ports_last_5min > 10:
         return DetectionResult(
             enriched=alert,
@@ -50,7 +82,7 @@ def apply_rules(alert: EnrichedAlert) -> DetectionResult:
             needs_ml=True,
         )
 
-    # ── Priority 2: BRUTE_FORCE ──────────────────────────
+    # ── Priority 4: BRUTE_FORCE ──────────────────────────
     if alert.failed_auth_count_last_5min > 5:
         return DetectionResult(
             enriched=alert,
@@ -60,17 +92,17 @@ def apply_rules(alert: EnrichedAlert) -> DetectionResult:
             needs_ml=True,
         )
 
-    # ── Priority 3: C2_COMMUNICATION ─────────────────────
-    if alert.is_known_bad_port and alert.src_reputation_score > 0.7:
+    # ── Priority 5: DOS_FLOOD ────────────────────────────
+    if alert.same_src_ip_count_last_5min > 20 or alert.alert.severity >= 14:
         return DetectionResult(
             enriched=alert,
             rule_triggered=True,
-            rule_name="C2_COMMUNICATION",
-            confidence=alert.src_reputation_score,
+            rule_name="DOS_FLOOD",
+            confidence=min(alert.same_src_ip_count_last_5min / 50.0, 1.0),
             needs_ml=True,
         )
 
-    # ── Priority 4: DATA_EXFILTRATION ────────────────────
+    # ── Priority 6: DATA_EXFILTRATION ────────────────────
     if alert.alert.dst_port in {21, 25, 53} and alert.is_src_internal:
         return DetectionResult(
             enriched=alert,

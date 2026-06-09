@@ -1,0 +1,10 @@
+name: dos_flood
+attack_type: dos
+severity_threshold: 0.60
+actions:
+  - type: block_ip
+    description: Block flooding source IP at network perimeter
+  - type: notify
+    description: Alert SOC analyst — active DoS/DDoS detected
+  - type: log
+    description: Record flood metrics and connection count

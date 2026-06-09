@@ -104,8 +104,11 @@ def score_fp(
           fp_score          — probability that this alert is a false positive
           is_false_positive — True if fp_score >= FP_SCORE_THRESHOLD
     """
-    # Tier 1: benign with no rule → definitely a false positive
-    if result.ml_label == "benign" and not result.detection.rule_triggered:
+    # Tier 1: benign with no rule AND low severity → likely a false positive
+    # But still run through ML models for attacks that slipped past rules
+    if (result.ml_label == "benign"
+            and not result.detection.rule_triggered
+            and result.detection.enriched.alert.severity <= 3):
         return 1.0, True
 
     # Tier 2: high-confidence malicious → trust the upstream classifier, skip FP models

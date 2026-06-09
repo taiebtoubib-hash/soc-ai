@@ -1,0 +1,10 @@
+name: neptune_flood
+attack_type: dos
+severity_threshold: 0.50
+actions:
+  - type: block_ip
+    description: Block SYN flood source at firewall
+  - type: notify
+    description: Alert analyst — SYN flood (neptune) detected on target
+  - type: log
+    description: Log connection volume and SYN packet metrics

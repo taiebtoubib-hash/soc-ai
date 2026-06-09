@@ -59,22 +59,16 @@ AnalysisAgent = agent_mod.AnalysisAgent
 
 # ── Helper: simulate_alerts → NormalizedAlert ─────────────────────
 
+collector_mod = _load("agent01", "../01_collector/agent.py")
+WazuhCollector = collector_mod.WazuhCollector
+SuricataCollector = collector_mod.SuricataCollector
+
 def make_normalized_alert(raw: dict) -> NormalizedAlert:
-    """Convert the simulate_alerts dict into a NormalizedAlert."""
-    return NormalizedAlert(
-        id=str(raw["id"]),
-        timestamp=raw["timestamp"],
-        source=raw["source"],
-        src_ip=raw["src_ip"],
-        dst_ip=raw["dst_ip"],
-        src_port=int(raw["src_port"]),
-        dst_port=int(raw["dst_port"]),
-        protocol=raw["protocol"],
-        rule_id=raw["rule_id"],
-        rule_description=raw["rule_description"],
-        severity=int(raw["severity"]),
-        raw=raw,
-    )
+    """Convert the native raw alert dict into a NormalizedAlert."""
+    if raw.get("source") == "wazuh":
+        return WazuhCollector().normalize(raw)
+    else:
+        return SuricataCollector().normalize(raw)
 
 
 # ── Test runner ───────────────────────────────────────────────────
